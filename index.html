@@ -46,10 +46,14 @@ body {
   padding: 22px;
   gap: 22px;
   box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+
+  /* move content slightly lower */
+  transform: translateY(40px);
+
   animation: windowIn 0.8s ease;
 }
 
-/* ===== LEFT PANEL ===== */
+/* ===== LEFT ===== */
 .left {
   display: flex;
   flex-direction: column;
@@ -91,9 +95,10 @@ body {
 .metadata {
   font-size: 15px;
   color: #d6d6ff;
-  min-height: 20px;
+  min-height: 24px;
 }
 
+/* ===== BUTTON ===== */
 button {
   margin-top: 6px;
   background: linear-gradient(135deg, rgba(120,120,255,0.6), rgba(80,80,255,0.35));
@@ -111,7 +116,7 @@ button:hover {
   box-shadow: 0 10px 25px rgba(120,120,255,0.35);
 }
 
-/* ===== RIGHT PANEL ===== */
+/* ===== RIGHT ===== */
 .right {
   overflow-y: auto;
   display: flex;
@@ -148,9 +153,7 @@ button:hover {
 
 /* ===== MOBILE ===== */
 @media (max-width: 900px) {
-  body {
-    align-items: flex-start;
-  }
+  body { align-items: flex-start; }
 
   .window {
     width: 100%;
@@ -158,6 +161,7 @@ button:hover {
     border-radius: 0;
     grid-template-columns: 1fr;
     padding: 16px;
+    transform: none;
   }
 
   .album {
@@ -182,8 +186,8 @@ button:hover {
 }
 
 @keyframes windowIn {
-  from { opacity: 0; transform: scale(0.95) translateY(20px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  from { opacity: 0; transform: scale(0.95) translateY(60px); }
+  to { opacity: 1; transform: scale(1) translateY(40px); }
 }
 </style>
 </head>
@@ -210,17 +214,26 @@ const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 const stations = [
   { name:"BBC Radio 1", icon:"icons/bbc1.png",
+    service:"radio1",
     url:"https://as-hls-ww-live.akamaized.net/pool_01505109/live/ww/bbc_radio_one/bbc_radio_one.isml/bbc_radio_one-audio%3d96000.norewind.m3u8" },
   { name:"BBC Radio 1Xtra", icon:"icons/bbc1x.png",
+    service:"1xtra",
     url:"https://as-hls-ww-live.akamaized.net/pool_92079267/live/ww/bbc_1xtra/bbc_1xtra.isml/bbc_1xtra-audio%3d96000.norewind.m3u8" },
   { name:"BBC Radio 2", icon:"icons/bbc2.png",
+    service:"radio2",
     url:"https://as-hls-ww-live.akamaized.net/pool_74208725/live/ww/bbc_radio_two/bbc_radio_two.isml/bbc_radio_two-audio%3d96000.norewind.m3u8" },
   { name:"BBC Radio 3", icon:"icons/bbc3.png",
+    service:"radio3",
     url:"https://as-hls-ww-live.akamaized.net/pool_23461179/live/ww/bbc_radio_three/bbc_radio_three.isml/bbc_radio_three-audio%3d96000.norewind.m3u8" },
   { name:"BBC Radio 4 Extra", icon:"icons/bbc4extra.png",
+    service:"radio4extra",
     url:"https://as-hls-ww-live.akamaized.net/pool_26173715/live/ww/bbc_radio_four_extra/bbc_radio_four_extra.isml/bbc_radio_four_extra-audio%3d96000.norewind.m3u8" },
   { name:"BBC Radio 6 Music", icon:"icons/bbc6.png",
-    url:"https://as-hls-ww-live.akamaized.net/pool_81827798/live/ww/bbc_6music/bbc_6music.isml/bbc_6music-audio%3d96000.norewind.m3u8" }
+    service:"6music",
+    url:"https://as-hls-ww-live.akamaized.net/pool_81827798/live/ww/bbc_6music/bbc_6music.isml/bbc_6music-audio%3d96000.norewind.m3u8" },
+  { name:"BBC World Service", icon:"icons/bbcws.png",
+    service:"worldserviceradio",
+    url:"https://as-hls-ww-live.akamaized.net/pool_01454409/live/ww/bbc_world_service/bbc_world_service.isml/bbc_world_service-audio%3d96000.norewind.m3u8" }
 ];
 
 const audio = document.getElementById("audio");
@@ -231,8 +244,34 @@ const album = document.getElementById("album");
 
 let current = stations[0];
 let hls;
+let metaTimer;
 
-/* Build station list */
+/* ===== METADATA ===== */
+async function updateMetadata() {
+  if (!current.service) return;
+
+  try {
+    const res = await fetch(
+      `https://rmp-live-data.api.bbci.co.uk/v2/services/${current.service}/segments`
+    );
+    const data = await res.json();
+
+    const seg = data?.data?.[0];
+    if (!seg) return;
+
+    if (seg.artist && seg.title) {
+      metadata.textContent = `${seg.artist} – ${seg.title}`;
+    } else if (seg.title) {
+      metadata.textContent = seg.title;
+    } else {
+      metadata.textContent = "Live broadcast";
+    }
+  } catch {
+    metadata.textContent = "Live broadcast";
+  }
+}
+
+/* ===== BUILD LIST ===== */
 stations.forEach((s,i)=>{
   const el = document.createElement("div");
   el.className = "station" + (i===0 ? " active" : "");
@@ -245,39 +284,35 @@ stations.forEach((s,i)=>{
     stationName.textContent = s.name;
     metadata.textContent = "Tap Play";
     album.classList.remove("playing");
+    clearInterval(metaTimer);
   };
   list.appendChild(el);
 });
 
-/* Play logic */
-playBtn.onclick = () => {
+/* ===== PLAY ===== */
+playBtn.onclick = async () => {
   metadata.textContent = "Connecting…";
 
   if (isIOS) {
     audio.src = current.url;
     audio.load();
-    audio.play().then(()=>{
-      metadata.textContent = "Live broadcast";
-      album.classList.add("playing");
-    });
+    await audio.play();
   } else {
     if (Hls.isSupported()) {
       if (hls) hls.destroy();
       hls = new Hls();
       hls.loadSource(current.url);
       hls.attachMedia(audio);
-      hls.on(Hls.Events.MANIFEST_PARSED, ()=>{
-        audio.play();
-        metadata.textContent = "Live broadcast";
-        album.classList.add("playing");
-      });
+      hls.on(Hls.Events.MANIFEST_PARSED, () => audio.play());
     } else {
       audio.src = current.url;
       audio.play();
-      metadata.textContent = "Live broadcast";
-      album.classList.add("playing");
     }
   }
+
+  album.classList.add("playing");
+  updateMetadata();
+  metaTimer = setInterval(updateMetadata, 30000);
 };
 </script>
 
