@@ -17,7 +17,7 @@
 
 * {
   box-sizing: border-box;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont;
+  font-family: system-ui, -apple-system;
 }
 
 body {
@@ -33,7 +33,7 @@ body {
   overflow: hidden;
 }
 
-/* ===== MAIN WINDOW ===== */
+/* ===== WINDOW ===== */
 .window {
   width: 1100px;
   height: 760px;
@@ -46,11 +46,7 @@ body {
   padding: 22px;
   gap: 22px;
   box-shadow: 0 30px 80px rgba(0,0,0,0.45);
-
-  /* move content slightly lower */
-  transform: translateY(40px);
-
-  animation: windowIn 0.8s ease;
+  animation: windowIn .8s ease;
 }
 
 /* ===== LEFT ===== */
@@ -93,27 +89,33 @@ body {
 }
 
 .metadata {
-  font-size: 15px;
-  color: #d6d6ff;
-  min-height: 24px;
+  font-size: 16px;
+  color: #e0e0ff;
+  min-height: 22px;
 }
 
-/* ===== BUTTON ===== */
-button {
-  margin-top: 6px;
-  background: linear-gradient(135deg, rgba(120,120,255,0.6), rgba(80,80,255,0.35));
+/* ===== PLAY BUTTON ===== */
+.play-btn {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
   border: 1px solid var(--border);
-  color: white;
-  padding: 14px 22px;
-  border-radius: 16px;
+  background: radial-gradient(circle, rgba(120,120,255,0.7), rgba(60,60,200,0.5));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
   cursor: pointer;
-  font-size: 18px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform .15s ease, box-shadow .15s ease;
+  box-shadow: 0 10px 30px rgba(120,120,255,.35);
 }
 
-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(120,120,255,0.35);
+.play-btn:active {
+  transform: scale(.92);
+}
+
+.play-btn.playing {
+  box-shadow: 0 0 40px rgba(120,120,255,.7);
 }
 
 /* ===== RIGHT ===== */
@@ -122,7 +124,6 @@ button:hover {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding-right: 6px;
 }
 
 .station {
@@ -134,16 +135,16 @@ button:hover {
   border: 1px solid var(--border);
   background: rgba(0,0,0,0.25);
   cursor: pointer;
-  transition: transform 0.25s ease, background 0.25s ease;
+  transition: transform .25s ease, background .25s ease;
 }
 
 .station:hover {
   transform: translateX(6px);
-  background: rgba(120,120,255,0.25);
+  background: rgba(120,120,255,.25);
 }
 
 .station.active {
-  background: rgba(120,120,255,0.45);
+  background: rgba(120,120,255,.45);
 }
 
 .station img {
@@ -158,19 +159,14 @@ button:hover {
   .window {
     width: 100%;
     height: 100vh;
-    border-radius: 0;
     grid-template-columns: 1fr;
+    border-radius: 0;
     padding: 16px;
-    transform: none;
   }
 
   .album {
     width: 220px;
     height: 220px;
-  }
-
-  button {
-    width: 100%;
   }
 }
 
@@ -182,12 +178,12 @@ button:hover {
 
 @keyframes pulse {
   0%,100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+  50% { transform: scale(1.06); }
 }
 
 @keyframes windowIn {
-  from { opacity: 0; transform: scale(0.95) translateY(60px); }
-  to { opacity: 1; transform: scale(1) translateY(40px); }
+  from { opacity: 0; transform: scale(.95) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 </style>
 </head>
@@ -198,10 +194,12 @@ button:hover {
     <div class="album" id="album">
       <img id="cover" src="icons/bbc1.png">
     </div>
+
     <div id="stationName" class="station-name">BBC Radio 1</div>
     <div class="now-playing">🔴 LIVE</div>
-    <div id="metadata" class="metadata">Tap Play</div>
-    <button id="playBtn">▶ Play</button>
+    <div id="metadata" class="metadata">Tap play</div>
+
+    <div id="playBtn" class="play-btn">▶</div>
   </div>
 
   <div class="right" id="stations"></div>
@@ -213,27 +211,48 @@ button:hover {
 const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 const stations = [
-  { name:"BBC Radio 1", icon:"icons/bbc1.png",
-    service:"radio1",
-    url:"https://as-hls-ww-live.akamaized.net/pool_01505109/live/ww/bbc_radio_one/bbc_radio_one.isml/bbc_radio_one-audio%3d96000.norewind.m3u8" },
-  { name:"BBC Radio 1Xtra", icon:"icons/bbc1x.png",
-    service:"1xtra",
-    url:"https://as-hls-ww-live.akamaized.net/pool_92079267/live/ww/bbc_1xtra/bbc_1xtra.isml/bbc_1xtra-audio%3d96000.norewind.m3u8" },
-  { name:"BBC Radio 2", icon:"icons/bbc2.png",
-    service:"radio2",
-    url:"https://as-hls-ww-live.akamaized.net/pool_74208725/live/ww/bbc_radio_two/bbc_radio_two.isml/bbc_radio_two-audio%3d96000.norewind.m3u8" },
-  { name:"BBC Radio 3", icon:"icons/bbc3.png",
-    service:"radio3",
-    url:"https://as-hls-ww-live.akamaized.net/pool_23461179/live/ww/bbc_radio_three/bbc_radio_three.isml/bbc_radio_three-audio%3d96000.norewind.m3u8" },
-  { name:"BBC Radio 4 Extra", icon:"icons/bbc4extra.png",
-    service:"radio4extra",
-    url:"https://as-hls-ww-live.akamaized.net/pool_26173715/live/ww/bbc_radio_four_extra/bbc_radio_four_extra.isml/bbc_radio_four_extra-audio%3d96000.norewind.m3u8" },
-  { name:"BBC Radio 6 Music", icon:"icons/bbc6.png",
-    service:"6music",
-    url:"https://as-hls-ww-live.akamaized.net/pool_81827798/live/ww/bbc_6music/bbc_6music.isml/bbc_6music-audio%3d96000.norewind.m3u8" },
-  { name:"BBC World Service", icon:"icons/bbcws.png",
-    service:"worldserviceradio",
-    url:"https://as-hls-ww-live.akamaized.net/pool_01454409/live/ww/bbc_world_service/bbc_world_service.isml/bbc_world_service-audio%3d96000.norewind.m3u8" }
+  {
+    name:"BBC Radio 1",
+    icon:"icons/bbc1.png",
+    stream:"https://as-hls-ww-live.akamaized.net/pool_01505109/live/ww/bbc_radio_one/bbc_radio_one.isml/bbc_radio_one-audio%3d96000.norewind.m3u8",
+    service:"bbc_radio_one"
+  },
+  {
+    name:"BBC Radio 1Xtra",
+    icon:"icons/bbc1x.png",
+    stream:"https://as-hls-ww-live.akamaized.net/pool_92079267/live/ww/bbc_1xtra/bbc_1xtra.isml/bbc_1xtra-audio%3d96000.norewind.m3u8",
+    service:"bbc_1xtra"
+  },
+  {
+    name:"BBC Radio 2",
+    icon:"icons/bbc2.png",
+    stream:"https://as-hls-ww-live.akamaized.net/pool_74208725/live/ww/bbc_radio_two/bbc_radio_two.isml/bbc_radio_two-audio%3d96000.norewind.m3u8",
+    service:"bbc_radio_two"
+  },
+  {
+    name:"BBC Radio 3",
+    icon:"icons/bbc3.png",
+    stream:"https://as-hls-ww-live.akamaized.net/pool_23461179/live/ww/bbc_radio_three/bbc_radio_three.isml/bbc_radio_three-audio%3d96000.norewind.m3u8",
+    service:"bbc_radio_three"
+  },
+  {
+    name:"BBC Radio 4 Extra",
+    icon:"icons/bbc4extra.png",
+    stream:"https://as-hls-ww-live.akamaized.net/pool_26173715/live/ww/bbc_radio_four_extra/bbc_radio_four_extra.isml/bbc_radio_four_extra-audio%3d96000.norewind.m3u8",
+    service:"bbc_radio_four_extra"
+  },
+  {
+    name:"BBC Radio 6 Music",
+    icon:"icons/bbc6.png",
+    stream:"https://as-hls-ww-live.akamaized.net/pool_81827798/live/ww/bbc_6music/bbc_6music.isml/bbc_6music-audio%3d96000.norewind.m3u8",
+    service:"bbc_6music"
+  },
+  {
+    name:"BBC World Service",
+    icon:"icons/worldservice.png",
+    stream:"http://as-hls-ww-live.akamaized.net/pool_87948813/live/ww/bbc_world_service/bbc_world_service.isml/bbc_world_service-audio%3d96000.norewind.m3u8",
+    service:"bbc_world_service"
+  }
 ];
 
 const audio = document.getElementById("audio");
@@ -244,76 +263,86 @@ const album = document.getElementById("album");
 
 let current = stations[0];
 let hls;
+let playing = false;
 let metaTimer;
 
-/* ===== METADATA ===== */
-async function updateMetadata() {
-  if (!current.service) return;
-
-  try {
-    const res = await fetch(
-      `https://rmp-live-data.api.bbci.co.uk/v2/services/${current.service}/segments`
-    );
-    const data = await res.json();
-
-    const seg = data?.data?.[0];
-    if (!seg) return;
-
-    if (seg.artist && seg.title) {
-      metadata.textContent = `${seg.artist} – ${seg.title}`;
-    } else if (seg.title) {
-      metadata.textContent = seg.title;
-    } else {
-      metadata.textContent = "Live broadcast";
-    }
-  } catch {
-    metadata.textContent = "Live broadcast";
-  }
-}
-
-/* ===== BUILD LIST ===== */
+/* Build list */
 stations.forEach((s,i)=>{
   const el = document.createElement("div");
-  el.className = "station" + (i===0 ? " active" : "");
+  el.className = "station" + (i===0?" active":"");
   el.innerHTML = `<img src="${s.icon}"><span>${s.name}</span>`;
-  el.onclick = () => {
-    document.querySelectorAll(".station").forEach(x=>x.classList.remove("active"));
-    el.classList.add("active");
-    current = s;
-    cover.src = s.icon;
-    stationName.textContent = s.name;
-    metadata.textContent = "Tap Play";
-    album.classList.remove("playing");
-    clearInterval(metaTimer);
-  };
+  el.onclick = () => selectStation(s, el);
   list.appendChild(el);
 });
 
-/* ===== PLAY ===== */
-playBtn.onclick = async () => {
+function selectStation(station, el) {
+  document.querySelectorAll(".station").forEach(x=>x.classList.remove("active"));
+  el.classList.add("active");
+  current = station;
+  cover.src = station.icon;
+  stationName.textContent = station.name;
+  metadata.textContent = "Tap play";
+  stop();
+}
+
+/* Play / Pause */
+playBtn.onclick = () => {
+  playing ? stop() : play();
+};
+
+function play() {
   metadata.textContent = "Connecting…";
 
   if (isIOS) {
-    audio.src = current.url;
-    audio.load();
-    await audio.play();
+    audio.src = current.stream;
+    audio.play();
   } else {
     if (Hls.isSupported()) {
       if (hls) hls.destroy();
       hls = new Hls();
-      hls.loadSource(current.url);
+      hls.loadSource(current.stream);
       hls.attachMedia(audio);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => audio.play());
+      hls.on(Hls.Events.MANIFEST_PARSED, ()=>audio.play());
     } else {
-      audio.src = current.url;
+      audio.src = current.stream;
       audio.play();
     }
   }
 
+  playing = true;
+  playBtn.textContent = "⏸";
+  playBtn.classList.add("playing");
   album.classList.add("playing");
-  updateMetadata();
-  metaTimer = setInterval(updateMetadata, 30000);
-};
+
+  fetchMetadata();
+  metaTimer = setInterval(fetchMetadata, 30000);
+}
+
+function stop() {
+  audio.pause();
+  playing = false;
+  playBtn.textContent = "▶";
+  playBtn.classList.remove("playing");
+  album.classList.remove("playing");
+  clearInterval(metaTimer);
+}
+
+/* ===== REAL BBC METADATA ===== */
+function fetchMetadata() {
+  fetch(`https://rms.api.bbc.co.uk/v2/services/${current.service}/segments/latest`)
+    .then(r=>r.json())
+    .then(d=>{
+      const seg = d.data[0];
+      if (seg && seg.titles?.primary) {
+        metadata.textContent = seg.titles.primary;
+      } else {
+        metadata.textContent = "Live broadcast";
+      }
+    })
+    .catch(()=>{
+      metadata.textContent = "Live broadcast";
+    });
+}
 </script>
 
 </body>
